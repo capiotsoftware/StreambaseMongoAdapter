@@ -1,7 +1,9 @@
 package com.capiot.streambase;
 
+import com.capiot.streambase.mongoUtil.SharedMongoClient;
 import com.mongodb.Block;
 import com.mongodb.async.SingleResultCallback;
+import com.mongodb.async.client.MongoClient;
 import com.mongodb.async.client.MongoClients;
 import com.streambase.sb.Schema;
 import com.streambase.sb.StreamBaseException;
@@ -47,6 +49,8 @@ public class Mongo extends Operator implements Parameterizable {
     private int outputPorts = 1;
     private Schema[] outputSchemas; // caches the Schemas given during init() for use at processTuple()
     private MongoCore mCore = null;
+
+    private boolean sharedClient;
 
     /**
      * The constructor is called when the Operator instance is created, but before the Operator
@@ -214,11 +218,24 @@ public class Mongo extends Operator implements Parameterizable {
         // for best performance, consider caching input or output Schema.Field objects for
         // use later in processTuple()
         outputSchemas = new Schema[outputPorts];
-
+        MongoClient c = null;
+        if (sharedClient) {
+            SharedObjectManager shom = this.getRuntimeEnvironment().getSharedObjectManager();
+            SharedMongoClient shc = (SharedMongoClient) shom.getSharedObject(Url);
+            if (shc == null) {
+                c = MongoClients.create(getUrl());
+                shc = new SharedMongoClient(getUrl());
+                shom.registerSharedObject(getUrl(), shc);
+                shc.startObject(); //Connect to the DB.
+            }
+            c = shc.getClient();
+        } else {
+            c = MongoClients.create(getUrl());
+        }
         for (int i = 0; i < outputPorts; ++i) {
             outputSchemas[i] = getRuntimeOutputSchema(i);
         }
-        mCore = new MongoCore(MongoClients.create(Url), collection, DB);
+        mCore = new MongoCore(c, collection, DB);
     }
 
     /**
@@ -309,5 +326,14 @@ public class Mongo extends Operator implements Parameterizable {
     public void setPurgeOnConnect(boolean purgeOnConnect) {
         this.PurgeOnConnect = purgeOnConnect;
     }
+
+    public boolean isSharedClient() {
+        return sharedClient;
+    }
+
+    public void setSharedClient(boolean sharedClient) {
+        this.sharedClient = sharedClient;
+    }
+
 
 }

@@ -28,7 +28,10 @@ public class MongoBeanInfo extends SBSimpleBeanInfo {
                 new SBPropertyDescriptor("DB", Mongo.class).displayName(
                         "Mongo DB").description(""),
                 new SBPropertyDescriptor("collection", Mongo.class)
-                        .displayName("Collection Name").description(""),};
+                        .displayName("Collection Name").description(""),
+                new SBPropertyDescriptor("sharedClient", Mongo.class)
+                        .displayName("Shared Client")
+                        .description("If set, any adapter with same Mongo URL will share a single client")};
         return p;
     }
 
