@@ -135,9 +135,6 @@ public class Mongo extends Operator implements Parameterizable {
      */
     public void processTuple(int inputPort, final Tuple tuple)
             throws StreamBaseException {
-        if (logger.isInfoEnabled()) {
-            logger.info("operator processing a tuple at input port" + inputPort);
-        }
         runTimeCheck(tuple, new String[]{"ID", "Command"});
         final String ID = tuple.getString("ID");
         final String cmd = tuple.getString("Command").toLowerCase();
@@ -161,8 +158,8 @@ public class Mongo extends Operator implements Parameterizable {
                 }
             });
         } else if (cmd == "update") {
-            runTimeCheck(tuple, new String[]{"_id", "Data"});
-            mCore.updateData(tuple.getString("Collection"), tuple.getString("_id"), tuple.getString("Data"), new SingleResultCallback<Document>() {
+            runTimeCheck(tuple, new String[]{"filter", "Data"});
+            mCore.updateData(tuple.getString("Collection"), tuple.getString("filter"), tuple.getString("Data"), new SingleResultCallback<Document>() {
 
                 @Override
                 public void onResult(final Document arg0, Throwable arg1) {
@@ -173,6 +170,11 @@ public class Mongo extends Operator implements Parameterizable {
                     }
                     generateAndRespond(ID, result);
                 }
+            });
+        } else if (cmd == "findoneanddelete") {
+            runTimeCheck(tuple, new String[]{"Collection", "filter", "Data"});
+            mCore.findOneAndUpdate(tuple.getString("Collection"), tuple.getString("filter"), tuple.getString("Data"), (result, t) -> {
+                generateAndRespond(ID, result.toJson());
             });
         } else if (cmd == "delete") {
             runTimeCheck(tuple, new String[]{"Collection", "_id"});

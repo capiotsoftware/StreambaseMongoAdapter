@@ -6,9 +6,8 @@ import com.mongodb.async.SingleResultCallback;
 import com.mongodb.async.client.MongoClient;
 import com.mongodb.async.client.MongoCollection;
 import com.mongodb.async.client.MongoDatabase;
-import com.mongodb.client.model.FindOneAndUpdateOptions;
-import com.mongodb.client.model.ReturnDocument;
 import com.mongodb.client.result.DeleteResult;
+import com.mongodb.client.result.UpdateResult;
 import com.streambase.sb.DataType;
 import com.streambase.sb.Schema;
 import org.bson.Document;
@@ -18,11 +17,9 @@ public class MongoCore {
     private static Schema schema;
 
     static {
-        schema = new Schema("MongoAdapter", new Schema.Field[]{
-                Schema.createField(DataType.STRING, "ID"),
+        schema = new Schema("MongoAdapter", Schema.createField(DataType.STRING, "ID"),
                 Schema.createField(DataType.STRING, "Collection"),
-                Schema.createField(DataType.STRING, "Data")
-        });
+                Schema.createField(DataType.STRING, "Data"));
     }
 
     private MongoCollection<Document> collection;
@@ -36,8 +33,6 @@ public class MongoCore {
         this.db = client.getDatabase(DB);
         this.collection = this.db.getCollection(Collection);
     }
-
-    ;
 
     /**
      * @return the schema
@@ -97,25 +92,43 @@ public class MongoCore {
         });
     }
 
-    public void updateData(String collection, String _id, String data, final SingleResultCallback<Document> callback) {
+    public void updateData(String collection, String filter, String data, final SingleResultCallback<Document> callback) {
         final Document payload = Document.parse(data);
-        final ObjectId oid = new ObjectId(_id);
-        final Document filter = new Document();
-        filter.append("_id", oid);
-        final Document set = new Document();
-        set.append("$set", payload);
-        db.getCollection(collection).findOneAndUpdate(filter, set, new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER), new SingleResultCallback<Document>() {
+        final Document selector = Document.parse(filter);
+//        final Document set = new Document();
+//        set.append("$set", payload);
+        db.getCollection(collection).updateMany(selector, payload, new SingleResultCallback<UpdateResult>() {
 
             @Override
-            public void onResult(Document arg0, Throwable arg1) {
-                // TODO Auto-generated method stub
-                if (arg1 != null) {
-                    System.out.println("arg1" + arg1.getMessage());
-                }
-                //payload.append("_modified", arg0.getModifiedCount());
-                callback.onResult(arg0, arg1);
+            public void onResult(UpdateResult result, Throwable t) {
+                Document doc = new Document();
+                doc.append("nModified", result.getModifiedCount());
+                doc.append("nMatched", result.getMatchedCount());
+                doc.append("acknowledged", result.wasAcknowledged());
+                doc.append("error", t == null);
+                doc.append("errorMessage", t == null ? "" : t.getMessage());
+                callback.onResult(doc, t);
             }
+
         });
+//        db.getCollection(collection).findOneAndUpdate(selector, set, new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER), new SingleResultCallback<Document>() {
+//
+//            @Override
+//            public void onResult(Document arg0, Throwable arg1) {
+//                // TODO Auto-generated method stub
+//                if (arg1 != null) {
+//                    System.out.println("arg1" + arg1.getMessage());
+//                }
+//                //payload.append("_modified", arg0.getModifiedCount());
+//                callback.onResult(arg0, arg1);
+//            }
+//        });
+    }
+
+    public void findOneAndUpdate(String collection, String filter, String data, SingleResultCallback<Document> callback) {
+        final Document payload = Document.parse(data);
+        final Document selector = Document.parse(filter);
+        db.getCollection(collection).findOneAndUpdate(selector, payload, callback);
     }
 
     public void deleteData(String Collection, String _id, SingleResultCallback<Document> callback) {
