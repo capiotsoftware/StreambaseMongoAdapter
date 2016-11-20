@@ -45,7 +45,7 @@
     <repositories>
         <repository>
             <id>SB76-local-repo</id>
-            <url>file:///Users/abilashmohan/Applications/TIBCO StreamBase 7.6.3/sdk/maven/repo</url>
+            <url>file:///Users/abilashmohan/Applications/TIBCO StreamBase 7.6.5/sdk/maven/repo</url>
         </repository>
     </repositories>
     <dependencies>
@@ -53,18 +53,18 @@
         <dependency>
             <groupId>org.mongodb</groupId>
             <artifactId>mongo-java-driver</artifactId>
-            <version>3.2.2</version>
+            <version>3.3.0</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/org.mongodb/mongodb-driver-async -->
         <dependency>
             <groupId>org.mongodb</groupId>
             <artifactId>mongodb-driver-async</artifactId>
-            <version>3.2.2</version>
+            <version>3.3.0</version>
         </dependency>
         <dependency>
             <groupId>com.streambase</groupId>
             <artifactId>sbclient</artifactId>
-            <version>7.6.3</version>
+            <version>7.6.5</version>
         </dependency>
     </dependencies>
 

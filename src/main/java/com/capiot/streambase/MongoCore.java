@@ -8,10 +8,11 @@ import com.mongodb.async.client.MongoCollection;
 import com.mongodb.async.client.MongoDatabase;
 import com.mongodb.client.result.DeleteResult;
 import com.mongodb.client.result.UpdateResult;
+import com.mongodb.util.JSONParseException;
 import com.streambase.sb.DataType;
 import com.streambase.sb.Schema;
+import com.streambase.sb.StreamBaseRuntimeException;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 
 public class MongoCore {
     private static Schema schema;
@@ -93,49 +94,53 @@ public class MongoCore {
     }
 
     public void updateData(String collection, String filter, String data, final SingleResultCallback<Document> callback) {
-        final Document payload = Document.parse(data);
-        final Document selector = Document.parse(filter);
-//        final Document set = new Document();
-//        set.append("$set", payload);
-        db.getCollection(collection).updateMany(selector, payload, new SingleResultCallback<UpdateResult>() {
+        try {
+            final Document payload = Document.parse(data);
+            final Document selector = Document.parse(filter);
+            //        final Document set = new Document();
+            //        set.append("$set", payload);
+            db.getCollection(collection).updateMany(selector, payload, new SingleResultCallback<UpdateResult>() {
 
-            @Override
-            public void onResult(UpdateResult result, Throwable t) {
-                Document doc = new Document();
-                doc.append("nModified", result.getModifiedCount());
-                doc.append("nMatched", result.getMatchedCount());
-                doc.append("acknowledged", result.wasAcknowledged());
-                doc.append("error", t == null);
-                doc.append("errorMessage", t == null ? "" : t.getMessage());
-                callback.onResult(doc, t);
-            }
-
-        });
-//        db.getCollection(collection).findOneAndUpdate(selector, set, new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER), new SingleResultCallback<Document>() {
-//
-//            @Override
-//            public void onResult(Document arg0, Throwable arg1) {
-//                // TODO Auto-generated method stub
-//                if (arg1 != null) {
-//                    System.out.println("arg1" + arg1.getMessage());
-//                }
-//                //payload.append("_modified", arg0.getModifiedCount());
-//                callback.onResult(arg0, arg1);
-//            }
-//        });
+                @Override
+                public void onResult(UpdateResult result, Throwable t) {
+                    Document doc = new Document();
+                    doc.append("nModified", (int) result.getModifiedCount());
+                    doc.append("nMatched", (int) result.getMatchedCount());
+                    doc.append("acknowledged", result.wasAcknowledged());
+                    doc.append("error", t != null);
+                    doc.append("errorMessage", t == null ? "" : t.getMessage());
+                    callback.onResult(doc, t);
+                }
+            });
+        } catch (JSONParseException e) {
+            throw new StreamBaseRuntimeException(e.getMessage());
+        }
     }
 
     public void findOneAndUpdate(String collection, String filter, String data, SingleResultCallback<Document> callback) {
-        final Document payload = Document.parse(data);
-        final Document selector = Document.parse(filter);
-        db.getCollection(collection).findOneAndUpdate(selector, payload, callback);
+        try {
+            final Document payload = Document.parse(data);
+            final Document selector = Document.parse(filter);
+            db.getCollection(collection).findOneAndUpdate(selector, payload, callback);
+        } catch (JSONParseException e) {
+            throw new StreamBaseRuntimeException(e.getMessage());
+        }
     }
 
-    public void deleteData(String Collection, String _id, SingleResultCallback<Document> callback) {
-        Document filter = new Document();
-        filter.append("_id", new ObjectId(_id));
-        System.out.println("Filter : " + filter.toJson());
-        db.getCollection(Collection).findOneAndDelete(filter, callback);
+    public void deleteData(String Collection, String filter, SingleResultCallback<Document> callback) {
+        try {
+            Document _filter = Document.parse(filter);
+            db.getCollection(Collection).deleteMany(_filter, (result, t) -> {
+                Document ret = new Document();
+                ret.append("nDelted", (int) result.getDeletedCount());
+                ret.append("acknowledged", result.wasAcknowledged());
+                ret.append("error", t != null);
+                ret.append("errorMessage", t != null ? t.getMessage() : "");
+                callback.onResult(ret, t);
+            });
+        } catch (JSONParseException e) {
+            throw new StreamBaseRuntimeException(e.getMessage());
+        }
     }
 
 }

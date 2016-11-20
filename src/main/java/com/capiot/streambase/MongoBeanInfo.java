@@ -31,7 +31,10 @@ public class MongoBeanInfo extends SBSimpleBeanInfo {
                         .displayName("Collection Name").description(""),
                 new SBPropertyDescriptor("sharedClient", Mongo.class)
                         .displayName("Shared Client")
-                        .description("If set, any adapter with same Mongo URL will share a single client")};
+                        .description("If set, any adapter with same Mongo URL will share a single client"),
+                new SBPropertyDescriptor("monitorConnection", Mongo.class)
+                        .displayName("Monitor Connection")
+                        .description("Enable monitoring mongodb connection changes")};
         return p;
     }
 

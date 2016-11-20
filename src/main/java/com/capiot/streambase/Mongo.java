@@ -1,12 +1,17 @@
 package com.capiot.streambase;
 
+import com.capiot.streambase.mongoUtil.MongoMonitorClass;
 import com.capiot.streambase.mongoUtil.SharedMongoClient;
 import com.mongodb.Block;
+import com.mongodb.ConnectionString;
 import com.mongodb.async.SingleResultCallback;
 import com.mongodb.async.client.MongoClient;
+import com.mongodb.async.client.MongoClientSettings;
 import com.mongodb.async.client.MongoClients;
+import com.mongodb.connection.ServerSettings;
 import com.streambase.sb.Schema;
 import com.streambase.sb.StreamBaseException;
+import com.streambase.sb.StreamBaseRuntimeException;
 import com.streambase.sb.Tuple;
 import com.streambase.sb.operator.Operator;
 import com.streambase.sb.operator.Parameterizable;
@@ -41,7 +46,6 @@ public class Mongo extends Operator implements Parameterizable {
     private String Url;
     private String collection;
     private String DB;
-    private boolean PurgeOnConnect;
 
     private String displayName = "Mongo";
     // Local variables
@@ -51,6 +55,8 @@ public class Mongo extends Operator implements Parameterizable {
     private MongoCore mCore = null;
 
     private boolean sharedClient;
+    private boolean monitorConnection;
+
 
     /**
      * The constructor is called when the Operator instance is created, but before the Operator
@@ -71,7 +77,6 @@ public class Mongo extends Operator implements Parameterizable {
         setUrl("mongodb://localhost:27017");
         setCollection("default");
         setDB("default");
-        setPurgeOnConnect(false);
     }
 
     /**
@@ -88,19 +93,22 @@ public class Mongo extends Operator implements Parameterizable {
 
         Schema read = getInputSchema(0);
         if (read != null) {
-            if (!read.hasField("filter")) {
-                throw new TypecheckException("Read Input does not contain filter / ID");
+            if (!read.hasField("Filter")) {
+                throw new TypecheckException("Read Input does not contain Filter / ID");
             } else if (!read.hasField("Collection")) {
                 throw new TypecheckException("Missing field\"Collection\"");
             } else if (!read.hasField("Command")) {
                 throw new TypecheckException("Missing field\"Command\"");
-            } else if (!read.hasField("filter")) {
-                throw new TypecheckException("Missing field \"filter\"");
+            } else if (!read.hasField("Filter")) {
+                throw new TypecheckException("Missing field \"Filter\"");
             }
         }
 
 
         setOutputSchema(0, MongoCore.getSchema());
+        if (isMonitorConnection()) {
+            setOutputSchema(1, MongoMonitorClass.getSchema());
+        }
     }
 
     private void generateAndRespond(String ID, String data) {
@@ -139,7 +147,7 @@ public class Mongo extends Operator implements Parameterizable {
         final String ID = tuple.getString("ID");
         final String cmd = tuple.getString("Command").toLowerCase();
 
-        if (cmd == "insert") {
+        if (cmd.equals("insert")) {
             runTimeCheck(tuple, new String[]{"Collection", "Data"});
             mCore.insertData(tuple.getString("Collection"), tuple.getString("Data"), new SingleResultCallback<Document>() {
 
@@ -149,17 +157,17 @@ public class Mongo extends Operator implements Parameterizable {
                     generateAndRespond(ID, arg0.toJson());
                 }
             });
-        } else if (cmd == "read") {
-            runTimeCheck(tuple, new String[]{"Collection", "filter"});
-            mCore.getData(tuple.getString("Collection"), tuple.getString("filter"), new Block<Document>() {
+        } else if (cmd.equals("read")) {
+            runTimeCheck(tuple, new String[]{"Collection", "Filter"});
+            mCore.getData(tuple.getString("Collection"), tuple.getString("Filter"), new Block<Document>() {
                 @Override
                 public void apply(Document arg0) {
                     generateAndRespond(ID, arg0.toJson());
                 }
             });
-        } else if (cmd == "update") {
-            runTimeCheck(tuple, new String[]{"filter", "Data"});
-            mCore.updateData(tuple.getString("Collection"), tuple.getString("filter"), tuple.getString("Data"), new SingleResultCallback<Document>() {
+        } else if (cmd.equals("update")) {
+            runTimeCheck(tuple, new String[]{"Filter", "Data"});
+            mCore.updateData(tuple.getString("Collection"), tuple.getString("Filter"), tuple.getString("Data"), new SingleResultCallback<Document>() {
 
                 @Override
                 public void onResult(final Document arg0, Throwable arg1) {
@@ -171,12 +179,12 @@ public class Mongo extends Operator implements Parameterizable {
                     generateAndRespond(ID, result);
                 }
             });
-        } else if (cmd == "findoneanddelete") {
-            runTimeCheck(tuple, new String[]{"Collection", "filter", "Data"});
-            mCore.findOneAndUpdate(tuple.getString("Collection"), tuple.getString("filter"), tuple.getString("Data"), (result, t) -> {
+        } else if (cmd.equals("findoneandupdate")) {
+            runTimeCheck(tuple, new String[]{"Collection", "Filter", "Data"});
+            mCore.findOneAndUpdate(tuple.getString("Collection"), tuple.getString("Filter"), tuple.getString("Data"), (result, t) -> {
                 generateAndRespond(ID, result.toJson());
             });
-        } else if (cmd == "delete") {
+        } else if (cmd.equals("delete")) {
             runTimeCheck(tuple, new String[]{"Collection", "_id"});
             mCore.deleteData(tuple.getString("Collection"), tuple.getString("_id"), new SingleResultCallback<Document>() {
 
@@ -193,6 +201,8 @@ public class Mongo extends Operator implements Parameterizable {
                 }
 
             });
+        } else {
+            throw new StreamBaseRuntimeException("Unknown command : " + cmd);
         }
     }
 //	@Override
@@ -220,12 +230,15 @@ public class Mongo extends Operator implements Parameterizable {
         // for best performance, consider caching input or output Schema.Field objects for
         // use later in processTuple()
         outputSchemas = new Schema[outputPorts];
+
         MongoClient c = null;
         if (sharedClient) {
             SharedObjectManager shom = this.getRuntimeEnvironment().getSharedObjectManager();
             SharedMongoClient shc = (SharedMongoClient) shom.getSharedObject(Url);
             if (shc == null) {
-                c = MongoClients.create(getUrl());
+                ConnectionString uri = new ConnectionString(getUrl());
+
+                c = MongoClients.create(uri);
                 shc = new SharedMongoClient(getUrl());
                 shom.registerSharedObject(getUrl(), shc);
                 shc.startObject(); //Connect to the DB.
@@ -233,6 +246,22 @@ public class Mongo extends Operator implements Parameterizable {
             c = shc.getClient();
         } else {
             c = MongoClients.create(getUrl());
+            if (isMonitorConnection()) {
+                MongoClientSettings settings = c.getSettings();
+                ConnectionString cString = new ConnectionString(getUrl());
+                ServerSettings ss = ServerSettings.builder().applyConnectionString(cString)
+                        .addServerMonitorListener(new MongoMonitorClass((t) -> {
+                            try {
+                                sendOutputAsync(1, t);
+                            } catch (StreamBaseException e) {
+                                e.printStackTrace();
+                            }
+                        })).build();
+                settings = MongoClientSettings.builder(settings)
+                        .serverSettings(ss)
+                        .build();
+                c = MongoClients.create(settings);
+            }
         }
         for (int i = 0; i < outputPorts; ++i) {
             outputSchemas[i] = getRuntimeOutputSchema(i);
@@ -275,9 +304,6 @@ public class Mongo extends Operator implements Parameterizable {
 
     public void setCollection(String collection) {
         this.collection = collection;
-        if (mCore != null) {
-            mCore.setCollection(collection, PurgeOnConnect);
-        }
     }
 
     /**
@@ -301,6 +327,14 @@ public class Mongo extends Operator implements Parameterizable {
         return true;
     }
 
+    public boolean shouldEnableSharedClient() {
+        return true;
+    }
+
+    public boolean shouldEnableMonitorConnection() {
+        return !isSharedClient();
+    }
+
     /**
      * @return the dB
      */
@@ -315,26 +349,24 @@ public class Mongo extends Operator implements Parameterizable {
         DB = dB;
     }
 
-    /**
-     * @return the purgeOnConnect
-     */
-    public boolean getPurgeOnConnect() {
-        return PurgeOnConnect;
-    }
-
-    /**
-     * @param purgeOnConnect the purgeOnConnect to set
-     */
-    public void setPurgeOnConnect(boolean purgeOnConnect) {
-        this.PurgeOnConnect = purgeOnConnect;
-    }
-
     public boolean isSharedClient() {
         return sharedClient;
     }
 
     public void setSharedClient(boolean sharedClient) {
+
         this.sharedClient = sharedClient;
+        if (sharedClient) {
+            setMonitorConnection(false);
+        }
+    }
+
+    public boolean isMonitorConnection() {
+        return monitorConnection;
+    }
+
+    public void setMonitorConnection(boolean monitorConnection) {
+        this.monitorConnection = monitorConnection;
     }
 
 
