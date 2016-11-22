@@ -1,7 +1,6 @@
 package com.capiot.streambase;
 
 
-import com.mongodb.Block;
 import com.mongodb.async.SingleResultCallback;
 import com.mongodb.async.client.MongoClient;
 import com.mongodb.async.client.MongoCollection;
@@ -20,7 +19,9 @@ public class MongoCore {
     static {
         schema = new Schema("MongoAdapter", Schema.createField(DataType.STRING, "ID"),
                 Schema.createField(DataType.STRING, "Collection"),
-                Schema.createField(DataType.STRING, "Data"));
+                Schema.createField(DataType.STRING, "Data"),
+                Schema.createField(DataType.BOOL, "Error"),
+                Schema.createField(DataType.STRING, "ErrorMessage"));
     }
 
     private MongoCollection<Document> collection;
@@ -64,21 +65,21 @@ public class MongoCore {
             });
     }
 
-    public void getData(String collection, String filter, Block<Document> callback) {
+    public void getData(String collection, String filter, SingleResultCallback<Document> callback) {
         Document bFilter = null;
         if (filter != null) {
             bFilter = Document.parse(filter);
         } else {
             bFilter = Document.parse("{}");
         }
-        db.getCollection(collection).find(bFilter).forEach(callback, new SingleResultCallback<Void>() {
-
-            @Override
-            public void onResult(Void arg0, Throwable arg1) {
-                // TODO Auto-generated method stub
-                return;
-            }
-        });
+        db.getCollection(collection).find(bFilter).forEach(
+                (document) -> callback.onResult(document, null),
+                (end, err) -> {
+                    if (err != null) {
+                        callback.onResult(null, err);
+                    }
+                }
+        );
     }
 
     public void insertData(String collection, String data, final SingleResultCallback<Document> callback) {
