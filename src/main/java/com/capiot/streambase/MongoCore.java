@@ -5,7 +5,6 @@ import com.mongodb.async.SingleResultCallback;
 import com.mongodb.async.client.MongoClient;
 import com.mongodb.async.client.MongoCollection;
 import com.mongodb.async.client.MongoDatabase;
-import com.mongodb.client.result.DeleteResult;
 import com.mongodb.client.result.UpdateResult;
 import com.mongodb.util.JSONParseException;
 import com.streambase.sb.DataType;
@@ -50,20 +49,6 @@ public class MongoCore {
         MongoCore.schema = schema;
     }
 
-    public void setCollection(String collection, boolean purgeOnConnect) {
-        this.collection = this.db.getCollection(collection);
-
-        if (purgeOnConnect)
-            this.collection.deleteMany(Document.parse("{}"), new SingleResultCallback<DeleteResult>() {
-
-                @Override
-                public void onResult(DeleteResult arg0, Throwable arg1) {
-                    // TODO Auto-generated method stub
-                    System.out.println("Deleted All documents...");
-                }
-
-            });
-    }
 
     public void getData(String collection, String filter, SingleResultCallback<Document> callback) {
         Document bFilter = null;
@@ -84,14 +69,8 @@ public class MongoCore {
 
     public void insertData(String collection, String data, final SingleResultCallback<Document> callback) {
         final Document payload = Document.parse(data);
-        db.getCollection(collection).insertOne(payload, new SingleResultCallback<Void>() {
-
-            @Override
-            public void onResult(Void arg0, Throwable arg1) {
-                // TODO Auto-generated method stub
-                callback.onResult(payload, arg1);
-            }
-        });
+        db.getCollection(collection).insertOne(payload, (Void arg0, Throwable arg1) ->
+                callback.onResult(payload, arg1));
     }
 
     public void updateData(String collection, String filter, String data, final SingleResultCallback<Document> callback) {
@@ -100,10 +79,7 @@ public class MongoCore {
             final Document selector = Document.parse(filter);
             //        final Document set = new Document();
             //        set.append("$set", payload);
-            db.getCollection(collection).updateMany(selector, payload, new SingleResultCallback<UpdateResult>() {
-
-                @Override
-                public void onResult(UpdateResult result, Throwable t) {
+            db.getCollection(collection).updateMany(selector, payload, (UpdateResult result, Throwable t) -> {
                     Document doc = new Document();
                     doc.append("nModified", (int) result.getModifiedCount());
                     doc.append("nMatched", (int) result.getMatchedCount());
@@ -111,7 +87,6 @@ public class MongoCore {
                     doc.append("error", t != null);
                     doc.append("errorMessage", t == null ? "" : t.getMessage());
                     callback.onResult(doc, t);
-                }
             });
         } catch (JSONParseException e) {
             throw new StreamBaseRuntimeException(e.getMessage());

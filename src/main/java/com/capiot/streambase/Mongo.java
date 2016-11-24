@@ -3,7 +3,6 @@ package com.capiot.streambase;
 import com.capiot.streambase.mongoUtil.MongoMonitorClass;
 import com.capiot.streambase.mongoUtil.SharedMongoClient;
 import com.mongodb.ConnectionString;
-import com.mongodb.async.SingleResultCallback;
 import com.mongodb.async.client.MongoClient;
 import com.mongodb.async.client.MongoClientSettings;
 import com.mongodb.async.client.MongoClients;
@@ -160,44 +159,30 @@ public class Mongo extends Operator implements Parameterizable {
         final String Collection = tuple.getString("Collection");
         if (cmd.equals("insert")) {
             runTimeCheck(tuple, new String[]{"Collection", "Data"});
-            mCore.insertData(tuple.getString("Collection"), tuple.getString("Data"), new SingleResultCallback<Document>() {
-
-                @Override
-                public void onResult(Document arg0, Throwable arg1) {
-                    // TODO Auto-generated method stub
-                    generateAndRespond(ID, Collection, arg0.toJson(), arg1);
-                }
-            });
+            mCore.insertData(tuple.getString("Collection"), tuple.getString("Data"),
+                    (Document arg0, Throwable arg1) -> generateAndRespond(ID, Collection, arg0.toJson(), arg1));
         } else if (cmd.equals("read")) {
             runTimeCheck(tuple, new String[]{"Collection", "Filter"});
             mCore.getData(tuple.getString("Collection"), tuple.getString("Filter"),
                     (arg0, arg1) -> generateAndRespond(ID, Collection, arg0.toJson(), arg1));
         } else if (cmd.equals("update")) {
             runTimeCheck(tuple, new String[]{"Filter", "Data"});
-            mCore.updateData(tuple.getString("Collection"), tuple.getString("Filter"), tuple.getString("Data"), new SingleResultCallback<Document>() {
+            mCore.updateData(tuple.getString("Collection"), tuple.getString("Filter"), tuple.getString("Data"),
+                    (final Document arg0, Throwable arg1) -> {
+                        String result = "";
+                        if (arg0 != null) {
+                            result = arg0.toJson();
+                        }
+                        generateAndRespond(ID, Collection, result, arg1);
 
-                @Override
-                public void onResult(final Document arg0, Throwable arg1) {
-                    // TODO Auto-generated method stub
-                    String result = "";
-                    if (arg0 != null) {
-                        result = arg0.toJson();
-                    }
-                    generateAndRespond(ID, Collection, result, arg1);
-                }
             });
         } else if (cmd.equals("findoneandupdate")) {
             runTimeCheck(tuple, new String[]{"Collection", "Filter", "Data"});
-            mCore.findOneAndUpdate(tuple.getString("Collection"), tuple.getString("Filter"), tuple.getString("Data"), (result, t) -> {
-                generateAndRespond(ID, Collection, result.toJson(), t);
-            });
+            mCore.findOneAndUpdate(tuple.getString("Collection"), tuple.getString("Filter"), tuple.getString("Data"),
+                    (result, t) -> generateAndRespond(ID, Collection, result.toJson(), t));
         } else if (cmd.equals("delete")) {
             runTimeCheck(tuple, new String[]{"Collection", "_id"});
-            mCore.deleteData(tuple.getString("Collection"), tuple.getString("_id"), new SingleResultCallback<Document>() {
-
-                @Override
-                public void onResult(Document arg0, Throwable arg1) {
-                    // TODO Auto-generated method stub
+            mCore.deleteData(tuple.getString("Collection"), tuple.getString("_id"), (Document arg0, Throwable arg1) -> {
                     String ret = "";
                     if (arg0 != null) {
                         ret = arg0.toJson();
@@ -205,7 +190,6 @@ public class Mongo extends Operator implements Parameterizable {
                         System.out.println("Error : " + arg1.getMessage());
                     }
                     generateAndRespond(ID, Collection, ret, arg1);
-                }
             });
         } else {
             throw new StreamBaseRuntimeException("Unknown command : " + cmd);
@@ -319,17 +303,14 @@ public class Mongo extends Operator implements Parameterizable {
      */
 
     public boolean shouldEnableInsertSchema() {
-        // TODO implement custom enablement logic here
         return true;
     }
 
     public boolean shouldEnableUrl() {
-        // TODO implement custom enablement logic here
         return true;
     }
 
     public boolean shouldEnableCollection() {
-        // TODO implement custom enablement logic here
         return true;
     }
 
