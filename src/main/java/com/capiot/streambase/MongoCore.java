@@ -62,6 +62,9 @@ public class MongoCore {
                 (end, err) -> {
                     if (err != null) {
                         callback.onResult(null, err);
+                    } else {
+                        Document doc = new Document("$$EOF", true);
+                        callback.onResult(doc, null);
                     }
                 }
         );
