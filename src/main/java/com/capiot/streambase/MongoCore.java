@@ -5,6 +5,7 @@ import com.mongodb.async.SingleResultCallback;
 import com.mongodb.async.client.MongoClient;
 import com.mongodb.async.client.MongoCollection;
 import com.mongodb.async.client.MongoDatabase;
+import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.result.UpdateResult;
 import com.mongodb.util.JSONParseException;
 import com.streambase.sb.DataType;
@@ -76,13 +77,15 @@ public class MongoCore {
                 callback.onResult(payload, arg1));
     }
 
-    public void updateData(String collection, String filter, String data, final SingleResultCallback<Document> callback) {
+    public void updateData(String collection, String filter,boolean upsert, String data, final SingleResultCallback<Document> callback) {
         try {
             final Document payload = Document.parse(data);
             final Document selector = Document.parse(filter);
             //        final Document set = new Document();
             //        set.append("$set", payload);
-            db.getCollection(collection).updateMany(selector, payload, (UpdateResult result, Throwable t) -> {
+            UpdateOptions upd = new UpdateOptions();
+            upd.upsert(upsert);
+            db.getCollection(collection).updateMany(selector, payload,upd, (UpdateResult result, Throwable t) -> {
                     Document doc = new Document();
                     doc.append("nModified", (int) result.getModifiedCount());
                     doc.append("nMatched", (int) result.getMatchedCount());

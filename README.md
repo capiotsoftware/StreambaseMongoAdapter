@@ -59,6 +59,7 @@ Command can be one of the following
 * Insert - Insert a document within a collection.
 * Read - Read one or more entries from MongoDB Collection, depending on what is supplied to "Filter". There will be a '{"$$EOF" : true }' in Data once the operator exhausts all the documents for a read operation.
 * Update - Update one or more documents in the collection, depending on what is supplied at "Filter" and "Data"
+* Upsert - Update the document if it exists, else Insert the document.
 * Delete - Delete one or more documents from the collection, depending on what is supplied to "Filter"
 
 # Maven Build target cheatsheet :

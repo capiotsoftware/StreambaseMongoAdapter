@@ -6,7 +6,7 @@
 
     <groupId>com.capiot.streambase</groupId>
     <artifactId>MongoAdapter</artifactId>
-    <version>0.7.1</version>
+    <version>0.7.2</version>
     <build>
         <plugins>
             <plugin>

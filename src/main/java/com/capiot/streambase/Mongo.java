@@ -165,9 +165,11 @@ public class Mongo extends Operator implements Parameterizable {
             runTimeCheck(tuple, new String[]{"Collection", "Filter"});
             mCore.getData(tuple.getString("Collection"), tuple.getString("Filter"),
                     (arg0, arg1) -> generateAndRespond(ID, Collection, arg0.toJson(), arg1));
-        } else if (cmd.equals("update")) {
+        } else if (cmd.equals("update") || cmd.equals("upsert")) {
             runTimeCheck(tuple, new String[]{"Filter", "Data"});
-            mCore.updateData(tuple.getString("Collection"), tuple.getString("Filter"), tuple.getString("Data"),
+
+            mCore.updateData(tuple.getString("Collection"), tuple.getString("Filter"), cmd.equals("upsert"),
+                    tuple.getString("Data"),
                     (final Document arg0, Throwable arg1) -> {
                         String result = "";
                         if (arg0 != null) {
