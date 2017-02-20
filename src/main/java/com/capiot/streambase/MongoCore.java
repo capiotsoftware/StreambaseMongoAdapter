@@ -5,13 +5,19 @@ import com.mongodb.async.SingleResultCallback;
 import com.mongodb.async.client.MongoClient;
 import com.mongodb.async.client.MongoCollection;
 import com.mongodb.async.client.MongoDatabase;
+import com.mongodb.client.model.InsertOneModel;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.result.UpdateResult;
 import com.mongodb.util.JSONParseException;
+import com.streambase.org.apache.commons.lang3.ArrayUtils;
 import com.streambase.sb.DataType;
 import com.streambase.sb.Schema;
 import com.streambase.sb.StreamBaseRuntimeException;
 import org.bson.Document;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class MongoCore {
     private static Schema schema;
@@ -75,6 +81,28 @@ public class MongoCore {
         final Document payload = Document.parse(data);
         db.getCollection(collection).insertOne(payload, (Void arg0, Throwable arg1) ->
                 callback.onResult(payload, arg1));
+    }
+
+    public void bulkinsert(String collection, String[] data, final SingleResultCallback<Document> callback){
+        try {
+            final List<InsertOneModel<Document>> payload = Arrays
+                    .stream(data)
+                    .map(e -> new InsertOneModel<>(Document.parse(e)))
+                    .collect(Collectors.toList());
+            db.getCollection(collection).bulkWrite(payload,(result,t) -> {
+                Document doc = null;
+                if(result != null){
+                    doc = new Document();
+                    doc.append("nInserted", result.getInsertedCount());
+                    doc.append("wasAcknowledged",result.wasAcknowledged());
+                }
+                callback.onResult(doc,t);
+            });
+        }
+        catch(Exception e){
+            callback.onResult(new Document(),e);
+        }
+
     }
 
     public void updateData(String collection, String filter,boolean upsert, String data, final SingleResultCallback<Document> callback) {

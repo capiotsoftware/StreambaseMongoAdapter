@@ -42,6 +42,7 @@ Operator input channel expects following tuples in the input :
 * Filter ( String )
 * Collection ( String )
 * Data ( String )
+* DataList ( String List, for bulk operations)
 * Command ( String )
 
 #### ID
@@ -61,6 +62,7 @@ Command can be one of the following
 * Update - Update one or more documents in the collection, depending on what is supplied at "Filter" and "Data"
 * Upsert - Update the document if it exists, else Insert the document.
 * Delete - Delete one or more documents from the collection, depending on what is supplied to "Filter"
+* BulkWrite - Perform a bulk insert into the DB
 
 # Maven Build target cheatsheet :
 mvn clean compile assembly:single

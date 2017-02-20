@@ -6,7 +6,7 @@
 
     <groupId>com.capiot.streambase</groupId>
     <artifactId>MongoAdapter</artifactId>
-    <version>0.7.2</version>
+    <version>0.7.3</version>
     <build>
         <plugins>
             <plugin>
@@ -53,13 +53,13 @@
         <dependency>
             <groupId>org.mongodb</groupId>
             <artifactId>mongo-java-driver</artifactId>
-            <version>3.3.0</version>
+            <version>3.4.0</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/org.mongodb/mongodb-driver-async -->
         <dependency>
             <groupId>org.mongodb</groupId>
             <artifactId>mongodb-driver-async</artifactId>
-            <version>3.3.0</version>
+            <version>3.4.0</version>
         </dependency>
         <dependency>
             <groupId>com.streambase</groupId>
