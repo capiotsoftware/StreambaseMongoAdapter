@@ -114,8 +114,9 @@ public class MongoCore {
             UpdateOptions upd = new UpdateOptions();
             upd.upsert(upsert);
             db.getCollection(collection).updateMany(selector, payload,upd, (UpdateResult result, Throwable t) -> {
-                    Document doc = new Document();
+                    Document doc = null;
                     if(result != null) {
+                        doc = new Document();
                         doc.append("nModified", (int) result.getModifiedCount());
                         doc.append("nMatched", (int) result.getMatchedCount());
                         doc.append("acknowledged", result.wasAcknowledged());
