@@ -10,6 +10,11 @@
 * Desiged to work with MongoDB Java driver Version 3.3.0
 
 
+#Changelogs
+* 0.7.3.1
+
+Fixed the "Update" / "Usert" crash that can happen if the operation fails.
+
 ## Build Instructions
 * This is an IntelliJ Project. Please use the same. 
 * Open the pom.xml and update the <url> of SB76-local-repo to the streambase installation on your machine.

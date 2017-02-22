@@ -115,11 +115,13 @@ public class MongoCore {
             upd.upsert(upsert);
             db.getCollection(collection).updateMany(selector, payload,upd, (UpdateResult result, Throwable t) -> {
                     Document doc = new Document();
-                    doc.append("nModified", (int) result.getModifiedCount());
-                    doc.append("nMatched", (int) result.getMatchedCount());
-                    doc.append("acknowledged", result.wasAcknowledged());
-                    doc.append("error", t != null);
-                    doc.append("errorMessage", t == null ? "" : t.getMessage());
+                    if(result != null) {
+                        doc.append("nModified", (int) result.getModifiedCount());
+                        doc.append("nMatched", (int) result.getMatchedCount());
+                        doc.append("acknowledged", result.wasAcknowledged());
+                        doc.append("error", t != null);
+                        doc.append("errorMessage", t == null ? "" : t.getMessage());
+                    }
                     callback.onResult(doc, t);
             });
         } catch (JSONParseException e) {
@@ -142,10 +144,12 @@ public class MongoCore {
             Document _filter = Document.parse(filter);
             db.getCollection(Collection).deleteMany(_filter, (result, t) -> {
                 Document ret = new Document();
-                ret.append("nDelted", (int) result.getDeletedCount());
-                ret.append("acknowledged", result.wasAcknowledged());
-                ret.append("error", t != null);
-                ret.append("errorMessage", t != null ? t.getMessage() : "");
+                if(result != null) {
+                    ret.append("nDelted", (int) result.getDeletedCount());
+                    ret.append("acknowledged", result.wasAcknowledged());
+                    ret.append("error", t != null);
+                    ret.append("errorMessage", t != null ? t.getMessage() : "");
+                }
                 callback.onResult(ret, t);
             });
         } catch (JSONParseException e) {
