@@ -146,7 +146,7 @@ public class MongoCore {
             db.getCollection(Collection).deleteMany(_filter, (result, t) -> {
                 Document ret = new Document();
                 if(result != null) {
-                    ret.append("nDelted", (int) result.getDeletedCount());
+                    ret.append("nDeleted", (int) result.getDeletedCount());
                     ret.append("acknowledged", result.wasAcknowledged());
                     ret.append("error", t != null);
                     ret.append("errorMessage", t != null ? t.getMessage() : "");
